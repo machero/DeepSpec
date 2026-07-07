@@ -1,5 +1,8 @@
 import os
 
+## cache dir
+CACHE_DIR = os.path.expanduser("~/.cache/deepspec")
+
 ## model_name_or_path
 QWEN_3_4B = "Qwen/Qwen3-4B"
 QWEN_3_8B = "Qwen/Qwen3-8B"
