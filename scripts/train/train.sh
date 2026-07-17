@@ -11,16 +11,19 @@
 #   config/dflash/dflash_qwen3_4b.py
 #   config/dflash/dflash_qwen3_8b.py
 #   config/dflash/dflash_qwen3_14b.py
+#   config/dflash/dflash_qwen3_5_27b.py
 ## dspark
 #   config/dspark/dspark_gemma4_12b.py
 #   config/dspark/dspark_qwen3_4b.py
 #   config/dspark/dspark_qwen3_8b.py
 #   config/dspark/dspark_qwen3_14b.py
+#   config/dspark/dspark_qwen3_5_27b.py
 ## eagle3
 #   config/eagle3/eagle3_gemma4_12b.py
 #   config/eagle3/eagle3_qwen3_4b.py
 #   config/eagle3/eagle3_qwen3_8b.py
 #   config/eagle3/eagle3_qwen3_14b.py
+#   config/eagle3/eagle3_qwen3_5_27b.py
 
 target_cache_dir=${target_cache_dir:-${HOME}/.cache/deepspec/qwen3_4b_target_cache}
 
