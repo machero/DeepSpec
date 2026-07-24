@@ -112,6 +112,32 @@ def assert_no_final_target_layer(target_model, target_layer_ids) -> None:
     )
 
 
+def build_target_cache(target_model) -> DynamicCache:
+    try:
+        cache = DynamicCache(config=target_model.config)
+    except TypeError:
+        cache = DynamicCache()
+    activate_past_recording = getattr(cache, "activate_past_recording", None)
+    if activate_past_recording is not None:
+        activate_past_recording()
+    return cache
+
+
+def crop_target_cache(
+    past_key_values_target: DynamicCache,
+    max_length: int,
+    num_tokens_to_remove: int,
+) -> None:
+    if num_tokens_to_remove <= 0:
+        return
+    try:
+        past_key_values_target.crop(max_length)
+    except RuntimeError as exc:
+        if "Linear attention layers can only be cropped" not in str(exc):
+            raise
+        past_key_values_target.crop(-num_tokens_to_remove)
+
+
 def build_results_table(
     *,
     rows: list[dict[str, object]],
@@ -340,7 +366,7 @@ def generate_decoding_sample(
         device=device,
     )
     position_ids = torch.arange(output_ids.shape[1], device=device).unsqueeze(0)
-    past_key_values_target = DynamicCache()
+    past_key_values_target = build_target_cache(target_model)
 
     output = target_model(
         input_ids=input_ids,
@@ -413,16 +439,26 @@ def generate_decoding_sample(
         )
 
         if verification.terminated_by_stop_token:
+            num_tokens_to_remove = verification.effective_proposal_length - accepted_draft_tokens
             acceptance_lengths.append(accepted_draft_tokens)
             start += accepted_draft_tokens
-            past_key_values_target.crop(start)
+            crop_target_cache(
+                past_key_values_target,
+                start,
+                num_tokens_to_remove,
+            )
             break
 
         output_ids[:, start + accepted_draft_tokens + 1] = verification.next_token
         new_token_ids = output_ids[:, start + 1 : start + accepted_draft_tokens + 2]
+        num_tokens_to_remove = verification.effective_proposal_length - accepted_draft_tokens
         acceptance_lengths.append(accepted_draft_tokens + 1)
         start += accepted_draft_tokens + 1
-        past_key_values_target.crop(start)
+        crop_target_cache(
+            past_key_values_target,
+            start,
+            num_tokens_to_remove,
+        )
         update(context, verification)
 
         if has_stop_token(new_token_ids, stop_token_ids):

@@ -60,6 +60,11 @@ def _get_target_backbone(target_model):
         if hasattr(target_model, "model") and hasattr(target_model.model, "language_model"):
             return target_model.model.language_model
         assert False, "Gemma4 target model must expose a text language_model."
+
+    if hasattr(target_model, "language_model"):
+        return target_model.language_model
+    if hasattr(target_model, "model") and hasattr(target_model.model, "language_model"):
+        return target_model.model.language_model
     return getattr(target_model, "model", target_model)
 
 

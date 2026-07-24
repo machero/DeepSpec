@@ -22,6 +22,7 @@ from deepspec.modeling.dspark.common import (
     DSparkForwardOutput,
     build_eval_mask,
     create_dspark_attention_mask,
+    create_dspark_dense_attention_mask,
     create_noise_embed,
     create_position_ids,
     log_sampler_stats,
@@ -412,13 +413,23 @@ class Qwen3DSparkModel(Qwen3PreTrainedModel):
         context_position_ids = torch.arange(seq_len, device=device).unsqueeze(0).expand(bsz, -1)
         draft_position_ids = create_position_ids(anchor_positions, self.block_size)
         full_position_ids = torch.cat([context_position_ids, draft_position_ids], dim=1)
-        dspark_attn_mask = create_dspark_attention_mask(
-            anchor_positions=anchor_positions,
-            block_keep_mask=block_keep_mask,
-            seq_len=seq_len,
-            block_size=self.block_size,
-            device=device,
-        )
+        if self.config._attn_implementation == "eager":
+            dspark_attn_mask = create_dspark_dense_attention_mask(
+                anchor_positions=anchor_positions,
+                block_keep_mask=block_keep_mask,
+                seq_len=seq_len,
+                block_size=self.block_size,
+                device=device,
+                dtype=noise_embedding.dtype,
+            )
+        else:
+            dspark_attn_mask = create_dspark_attention_mask(
+                anchor_positions=anchor_positions,
+                block_keep_mask=block_keep_mask,
+                seq_len=seq_len,
+                block_size=self.block_size,
+                device=device,
+            )
         output_hidden = self._forward_backbone(
             position_ids=full_position_ids,
             noise_embedding=noise_embedding,

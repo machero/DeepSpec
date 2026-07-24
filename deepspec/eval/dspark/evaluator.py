@@ -70,6 +70,7 @@ class Qwen3DSparkEvaluator(BaseEvaluator):
             self.args.target_name_or_path,
             dtype=torch.bfloat16,
             attn_implementation=self.EVAL_ATTN_IMPLEMENTATION,
+            trust_remote_code=True,
         ).to(device=self.device).eval()
 
         draft_model = self.draft_model_cls.from_pretrained(

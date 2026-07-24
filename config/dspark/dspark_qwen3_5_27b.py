@@ -15,6 +15,7 @@ model = dict(
     # Qwen3.5-27B has 64 hidden layers.
     # 5 evenly-spaced layers: start=1, end=num_layers-3=61, step=15.
     target_layer_ids=[1, 16, 31, 46, 61],
+    _attn_implementation="flex_attention",
     mask_token_id=151669,
     num_anchors=512,
 

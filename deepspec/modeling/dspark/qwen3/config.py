@@ -6,10 +6,19 @@ from deepspec.modeling.dspark.common import validate_target_layer_ids
 TRAIN_ATTN_IMPLEMENTATION = "flex_attention"
 
 
+def _get_text_config(target_config):
+    for attr in ("text_config", "language_config"):
+        config = getattr(target_config, attr, None)
+        if config is not None and hasattr(config, "num_hidden_layers"):
+            return config
+    return target_config
+
+
 def build_draft_config(
     target_config,
     model_args,
 ):
+    target_config = _get_text_config(target_config)
     num_target_layers = int(target_config.num_hidden_layers)
     num_draft_layers = int(model_args.num_draft_layers)
     layer_types = ["full_attention"] * num_draft_layers
@@ -41,7 +50,9 @@ def build_draft_config(
     draft_config.block_size = int(model_args.block_size)
     draft_config.tie_word_embeddings = False
     draft_config.layer_types = layer_types
-    draft_config._attn_implementation = TRAIN_ATTN_IMPLEMENTATION
+    draft_config._attn_implementation = str(
+        getattr(model_args, "_attn_implementation", TRAIN_ATTN_IMPLEMENTATION)
+    )
     draft_config.mask_token_id = int(model_args.mask_token_id)
     draft_config.target_layer_ids = target_layer_ids
     draft_config.num_anchors = int(model_args.num_anchors)

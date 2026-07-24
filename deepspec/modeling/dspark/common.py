@@ -75,6 +75,32 @@ def validate_target_layer_ids(layer_ids, num_target_layers: int):
     return layer_ids
 
 
+def _build_dspark_mask_bool(
+    *,
+    anchor_positions: torch.Tensor,
+    block_keep_mask: torch.Tensor,
+    seq_len: int,
+    block_size: int,
+    device: torch.device,
+):
+    bsz, num_blocks = anchor_positions.shape
+    q_idx = torch.arange(num_blocks * block_size, device=device)
+    kv_idx = torch.arange(seq_len + num_blocks * block_size, device=device)
+    q_block_id = q_idx // block_size
+    anchor_pos = anchor_positions[:, q_block_id]
+    is_context = kv_idx < seq_len
+    mask_context = is_context.view(1, 1, -1) & (
+        kv_idx.view(1, 1, -1) < anchor_pos.unsqueeze(-1)
+    )
+    is_draft = kv_idx >= seq_len
+    kv_block_id = (kv_idx - seq_len) // block_size
+    mask_draft = is_draft.view(1, 1, -1) & (
+        q_block_id.view(1, -1, 1) == kv_block_id.view(1, 1, -1)
+    )
+    is_valid_block = block_keep_mask[:, q_block_id]
+    return (mask_context | mask_draft) & is_valid_block.unsqueeze(-1)
+
+
 def create_dspark_attention_mask(
     *,
     anchor_positions: torch.Tensor,
@@ -104,6 +130,27 @@ def create_dspark_attention_mask(
         KV_LEN=seq_len + num_blocks * block_size,
         device=device,
     )
+
+
+def create_dspark_dense_attention_mask(
+    *,
+    anchor_positions: torch.Tensor,
+    block_keep_mask: torch.Tensor,
+    seq_len: int,
+    block_size: int,
+    device: torch.device,
+    dtype: torch.dtype,
+):
+    mask_bool = _build_dspark_mask_bool(
+        anchor_positions=anchor_positions,
+        block_keep_mask=block_keep_mask,
+        seq_len=seq_len,
+        block_size=block_size,
+        device=device,
+    )
+    zero = torch.zeros((), dtype=dtype, device=device)
+    neg_inf = torch.full((), torch.finfo(dtype).min, dtype=dtype, device=device)
+    return torch.where(mask_bool.unsqueeze(1), zero, neg_inf)
 
 
 def build_anchor_candidate_mask(
